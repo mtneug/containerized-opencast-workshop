@@ -1,0 +1,256 @@
+version: '3.5'
+
+
+networks:
+  default:
+    driver: store/weaveworks/net-plugin:latest_release
+  proxy_backends:
+    external: true
+
+
+configs:
+  activemq-activemq.xml:
+    file: ./activemq/activemq.xml
+  mariadb-opencast-ddl.sql:
+    file: ./mariadb/opencast-ddl.sql
+  opencast-mh_default_org.cfg:
+    file: ./opencast/org.opencastproject.organization-mh_default_org.cfg
+  opencast-custom.properties-admin:
+    file: ./opencast/custom.properties-admin
+  opencast-custom.properties-presentation:
+    file: ./opencast/custom.properties-presentation
+  opencast-custom.properties-worker:
+    file: ./opencast/custom.properties-worker
+
+
+secrets:
+  mariadb-pw-root:
+    file: ./mariadb/pw-root
+  mariadb-pw-opencast:
+    file: ./mariadb/pw-opencast
+
+
+services:
+  activemq:
+    image: webcenter/activemq:5.14.3
+    configs:
+      - source: activemq-activemq.xml
+        target: /opt/activemq/conf/activemq.xml
+    environment:
+      - ACTIVEMQ_MIN_MEMORY=128
+      - ACTIVEMQ_MAX_MEMORY=1024
+      - ACTIVEMQ_ENABLED_SCHEDULER=true
+      - ACTIVEMQ_REMOVE_DEFAULT_ACCOUNT=true
+      - ACTIVEMQ_OWNER_LOGIN=admin
+      - ACTIVEMQ_OWNER_PASSWORD=password
+    networks:
+      default:
+    volumes:
+      - type: bind
+        source: /mnt/docker/opencast-activemq-data
+        target: /opt/activemq/data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.workload == normal
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.8'
+          memory: 1GB
+      restart_policy:
+        condition: any
+        delay: 10s
+      update_config:
+        parallelism: 1
+        delay: 20s
+        monitor: 20s
+        failure_action: pause
+        max_failure_ratio: 0
+        order: stop-first
+
+
+  mariadb:
+    image: mariadb:10.0
+    command: --wait-timeout=86400 --max-connections=400
+    configs:
+      - source: mariadb-opencast-ddl.sql
+        target: /docker-entrypoint-initdb.d/mariadb-opencast-ddl.sql
+    secrets:
+      - mariadb-pw-root
+      - mariadb-pw-opencast
+    environment:
+      MYSQL_ROOT_HOST: localhost
+      MYSQL_DATABASE: opencast
+      MYSQL_USER: opencast
+      MYSQL_PASSWORD_FILE: /run/secrets/mariadb-pw-opencast
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mariadb-pw-root
+    networks:
+      default:
+    volumes:
+      - type: bind
+        source: /mnt/docker/opencast-mariadb-data
+        target: /var/lib/mysql
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.workload == normal
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.8'
+          memory: 1GB
+      restart_policy:
+        condition: any
+        delay: 10s
+      update_config:
+        parallelism: 1
+        delay: 30s
+        monitor: 30s
+        failure_action: pause
+        max_failure_ratio: 0
+        order: stop-first
+
+
+  admin:
+    image: opencast/admin:4.1
+    configs:
+      - source: opencast-mh_default_org.cfg
+        target: /etc/opencast/org.opencastproject.organization-mh_default_org.cfg
+      - source: opencast-custom.properties-admin
+        target: /etc/opencast/custom.properties
+    environment:
+      ORG_OPENCASTPROJECT_DB_VENDOR: MySQL
+      JAVA_MIN_MEM: 512M
+      JAVA_MAX_MEM: 5G
+    networks:
+      default:
+      proxy_backends:
+        aliases:
+          - opencast-admin
+    volumes:
+      - type: bind
+        source: /mnt/docker/opencast-data
+        target: /data
+    healthcheck:
+      disable: true
+    stop_grace_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.workload == normal
+      resources:
+        limits:
+          cpus: '3'
+          memory: 5G
+        reservations:
+          cpus: '2'
+          memory: 4G
+      restart_policy:
+        condition: any
+        delay: 10s
+      update_config:
+        parallelism: 1
+        delay: 60s
+        monitor: 60s
+        failure_action: pause
+        max_failure_ratio: 0
+        order: stop-first
+
+
+  presentation:
+    image: opencast/presentation:4.1
+    configs:
+      - source: opencast-mh_default_org.cfg
+        target: /etc/opencast/org.opencastproject.organization-mh_default_org.cfg
+      - source: opencast-custom.properties-presentation
+        target: /etc/opencast/custom.properties
+    environment:
+      ORG_OPENCASTPROJECT_DB_VENDOR: MySQL
+      JAVA_MIN_MEM: 512M
+      JAVA_MAX_MEM: 5G
+    networks:
+      default:
+      proxy_backends:
+        aliases:
+          - opencast-presentation
+    volumes:
+      - type: bind
+        source: /mnt/docker/opencast-data
+        target: /data
+    healthcheck:
+      disable: true
+    stop_grace_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.workload == normal
+      resources:
+        limits:
+          cpus: '3'
+          memory: 5G
+        reservations:
+          cpus: '2'
+          memory: 4G
+      restart_policy:
+        condition: any
+        delay: 10s
+      update_config:
+        parallelism: 1
+        delay: 60s
+        monitor: 60s
+        failure_action: pause
+        max_failure_ratio: 0
+        order: stop-first
+
+
+  worker:
+    image: opencast/worker:4.1
+    configs:
+      - source: opencast-mh_default_org.cfg
+        target: /etc/opencast/org.opencastproject.organization-mh_default_org.cfg
+      - source: opencast-custom.properties-worker
+        target: /etc/opencast/custom.properties
+    environment:
+      ORG_OPENCASTPROJECT_DB_VENDOR: MySQL
+      JAVA_MIN_MEM: 512M
+      JAVA_MAX_MEM: 7G
+    networks:
+      default:
+    volumes:
+      - type: bind
+        source: /mnt/docker/opencast-data
+        target: /data
+    healthcheck:
+      disable: true
+    stop_grace_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.workload == heavy
+      resources:
+        limits:
+          cpus: '4'
+          memory: 7G
+        reservations:
+          cpus: '2.5'
+          memory: 5G
+      restart_policy:
+        condition: any
+        delay: 10s
+      update_config:
+        parallelism: 1
+        delay: 60s
+        monitor: 60s
+        failure_action: pause
+        max_failure_ratio: 0
+        order: start-first # Worker can run in parallel

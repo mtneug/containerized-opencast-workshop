@@ -1,0 +1,51 @@
+version: '3.5'
+
+
+networks:
+  default:
+    driver: store/weaveworks/net-plugin:latest_release
+  backends:
+    driver: store/weaveworks/net-plugin:latest_release
+
+
+configs:
+  nginx-nginx.conf:
+    file: ./nginx/nginx.conf
+  nginx-mime.types:
+    file: ./nginx/mime.types
+
+
+services:
+  nginx:
+    image: nginx:1.13-alpine
+    configs:
+      - source: nginx-nginx.conf
+        target: /etc/nginx/nginx.conf
+      - source: nginx-mime.types
+        target: /etc/nginx/mime.types
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+    networks:
+      - default
+      - backends
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: '1'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 20M
+      restart_policy:
+        condition: any
+        delay: 10s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        monitor: 10s
+        failure_action: pause
+        max_failure_ratio: 0
+        order: start-first
