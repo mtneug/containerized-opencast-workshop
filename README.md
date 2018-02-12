@@ -191,4 +191,28 @@ oc-01:$  docker stack deploy --prune -c docker-compose.yml opencast
 
 ### Environment
 
-TODO:
+This workshop uses Google Kubernetes Engine to set up a managed Kubernetes cluster consisting of four `n1-standard-4` VMs (4 vCPUs, 15 GB memory). The recommended installation method various by the target environment. For an overview see the official [Kubernetes setup documentation](https://kubernetes.io/docs/setup/).
+
+The following named static IP is registered in Google VPC Network:
+
+- **k8s-oc**: 35.186.194.172
+
+The following DNS records are configured:
+
+Host              | Type | Target
+----------------- | ---- | ----------------
+`*.k8s.mtneug.de` | `A`  | `35.186.194.172`
+
+Opencast should be acceced via `oc.k8s.mtneug.de` and `oc-admin.k8s.mtneug.de`.
+
+### Create Admin Account
+
+```sh
+local:$ kubectl apply -f 01-kube-system
+```
+
+### Deploy Opencast
+
+```sh
+local:$ kubectl apply -f 02-opencast
+```

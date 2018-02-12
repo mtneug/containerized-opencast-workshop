@@ -1,0 +1,95 @@
+# NOTE: This uses just prove of concept images. Do not use in production!
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: nfs-server-srv
+  namespace: opencast
+  labels:
+    edu.my.srv: nfs-server
+spec:
+  clusterIP: 10.47.240.100
+  selector:
+    edu.my.srv: nfs-server
+  ports:
+    - name: nfs
+      port: 2049
+    - name: mountd
+      port: 20048
+    - name: rpcbind
+      port: 111
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-server-pv-claim
+  namespace: opencast
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-server
+  namespace: opencast
+  labels:
+    edu.my.srv: nfs-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      edu.my.srv: nfs-server
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        edu.my.srv: nfs-server
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: nfs-server
+          image: k8s.gcr.io/volume-nfs:0.8
+          ports:
+            - name: nfs
+              containerPort: 2049
+            - name: mountd
+              containerPort: 20048
+            - name: rpcbind
+              containerPort: 111
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: nfs-server-persistent-storage
+              mountPath: /exports
+      volumes:
+        - name: nfs-server-persistent-storage
+          persistentVolumeClaim:
+            claimName: nfs-server-pv-claim
+
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-server-pv
+spec:
+  capacity:
+    storage: 20Gi
+  volumeMode: Filesystem
+  # NOTE: You probably don't want Recycle (or Delete) in production!
+  persistentVolumeReclaimPolicy: Recycle
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    # FIXME: don't depend on ClusterIP
+    server: 10.47.240.100
+    path: "/"

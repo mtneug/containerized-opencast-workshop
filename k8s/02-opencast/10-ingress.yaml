@@ -1,0 +1,22 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: opencast-ingress
+  namespace: opencast
+  annotations:
+    kubernetes.io/ingress.class: gce
+    kubernetes.io/ingress.global-static-ip-name: k8s-oc
+spec:
+  rules:
+    - host: oc-admin.k8s.mtneug.de
+      http:
+        paths:
+          - backend:
+              serviceName: opencast-admin
+              servicePort: 80
+    - host: oc.k8s.mtneug.de
+      http:
+        paths:
+          - backend:
+              serviceName: opencast-presentation
+              servicePort: 80

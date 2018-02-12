@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: activemq
+  namespace: opencast
+  labels:
+    edu.my.srv: activemq
+spec:
+  selector:
+    edu.my.srv: activemq
+  ports:
+    - port: 61616
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: activemq-pv-claim
+  namespace: opencast
+  labels:
+    edu.my.srv: activemq
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: activemq-secrets
+  namespace: opencast
+data:
+  opencast-password: QUNUSVZFTVFfUFc=
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: activemq
+  namespace: opencast
+  labels:
+    edu.my.srv: activemq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      edu.my.srv: activemq
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        edu.my.srv: activemq
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: activemq
+          image: webcenter/activemq:5.14.3
+          ports:
+            - containerPort: 61616
+              protocol: TCP
+          env:
+            - name: ACTIVEMQ_MIN_MEMORY
+              value: "128"
+            - name: ACTIVEMQ_MAX_MEMORY
+              value: "1024"
+            - name: ACTIVEMQ_ENABLED_SCHEDULER
+              value: "true"
+            - name: ACTIVEMQ_REMOVE_DEFAULT_ACCOUNT
+              value: "true"
+            - name: ACTIVEMQ_OWNER_LOGIN
+              value: "opencast"
+            - name: ACTIVEMQ_OWNER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: activemq-secrets
+                  key: opencast-password
+          volumeMounts:
+            - name: activemq-persistent-storage
+              mountPath: /opt/activemq/data
+            - name: activemq-config
+              mountPath: /opt/activemq/conf/activemq.xml
+              subPath: activemq.xml
+          resources:
+            requests:
+              memory: 1Gi
+              cpu: 800m
+            limits:
+              memory: 2Gi
+              cpu: 2
+      volumes:
+        - name: activemq-config
+          configMap:
+            name: activemq-config
+        - name: activemq-persistent-storage
+          persistentVolumeClaim:
+            claimName: activemq-pv-claim

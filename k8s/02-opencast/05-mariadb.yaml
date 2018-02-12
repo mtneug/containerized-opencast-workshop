@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb
+  namespace: opencast
+  labels:
+    edu.my.srv: mariadb
+spec:
+  selector:
+    edu.my.srv: mariadb
+  ports:
+    - port: 3306
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mariadb-pv-claim
+  namespace: opencast
+  labels:
+    edu.my.srv: mariadb
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-secrets
+  namespace: opencast
+data:
+  opencast-password: TUFSSUFEQl9QVw==
+  root-password: cm9vdA==
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+  namespace: opencast
+  labels:
+    edu.my.srv: mariadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      edu.my.srv: mariadb
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        edu.my.srv: mariadb
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: mariadb
+          image: mariadb:10.0
+          ports:
+            - containerPort: 3306
+              protocol: TCP
+          env:
+            - name: MYSQL_ROOT_HOST
+              value: localhost
+            - name: MYSQL_DATABASE
+              value: opencast
+            - name: MYSQL_USER
+              value: opencast
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secrets
+                  key: opencast-password
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secrets
+                  key: root-password
+          volumeMounts:
+            - name: mariadb-persistent-storage
+              mountPath: /var/lib/mysql
+            - name: mariadb-initdb
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              memory: 1Gi
+              cpu: 800m
+            limits:
+              memory: 2Gi
+              cpu: 2
+      volumes:
+        - name: mariadb-initdb
+          configMap:
+            name: mariadb-config
+            items:
+              - key: opencast-ddl.sql
+                path: opencast-ddl.sql
+        - name: mariadb-persistent-storage
+          persistentVolumeClaim:
+            claimName: mariadb-pv-claim

@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opencast-worker
+  namespace: opencast
+  labels:
+    edu.my.srv: opencast-worker
+spec:
+  replicas: 2
+  minReadySeconds: 60
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      edu.my.srv: opencast-worker
+  template:
+    metadata:
+      labels:
+        edu.my.srv: opencast-worker
+    spec:
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: data-init
+          image: busybox
+          command: ["sh", "-c", "chown -R 800:800 /data"]
+          volumeMounts:
+            - name: opencast-data-persistent-storage
+              mountPath: /data
+      containers:
+        - name: opencast-worker
+          image: opencast/worker:4.1
+          env:
+            - name: ORG_OPENCASTPROJECT_DB_VENDOR
+              value: "MySQL"
+            - name: JAVA_MIN_MEM
+              value: "512M"
+            - name: JAVA_MAX_MEM
+              value: "7G"
+          volumeMounts:
+            - name: opencast-config
+              mountPath: /etc/opencast
+            - name: opencast-data-persistent-storage
+              mountPath: /data
+          resources:
+            requests:
+              memory: "5Gi"
+              cpu: "2.5"
+            limits:
+              memory: "7Gi"
+              cpu: "4"
+      volumes:
+        - name: opencast-config
+          configMap:
+            name: opencast-config
+            items:
+              - key: custom.properties-worker
+                path: custom.properties
+              - key: mh_default_org.cfg
+                path: org.opencastproject.organization-mh_default_org.cfg
+        - name: opencast-data-persistent-storage
+          persistentVolumeClaim:
+            claimName: opencast-data-pv-claim
