@@ -41,8 +41,8 @@ services:
       - ACTIVEMQ_MAX_MEMORY=1024
       - ACTIVEMQ_ENABLED_SCHEDULER=true
       - ACTIVEMQ_REMOVE_DEFAULT_ACCOUNT=true
-      - ACTIVEMQ_OWNER_LOGIN=admin
-      - ACTIVEMQ_OWNER_PASSWORD=password
+      - ACTIVEMQ_OWNER_LOGIN=opencast
+      - ACTIVEMQ_OWNER_PASSWORD=ACTIVEMQ_PW
     networks:
       default:
     volumes:

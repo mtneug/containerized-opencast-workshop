@@ -142,6 +142,7 @@ Add labels to nodes:
 oc-01:$  docker node update oc-01 --label-add "workload=normal"
 oc-01:$  docker node update oc-02 --label-add "workload=normal"
 oc-01:$  docker node update oc-03 --label-add "workload=heavy"
+oc-01:$  docker node update oc-04 --label-add "workload=heavy"
 ```
 
 Install Weave net plugin
