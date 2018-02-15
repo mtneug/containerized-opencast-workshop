@@ -71,6 +71,7 @@ oc-0x:$  apt install \
 ```sh
 oc-0x:$  apt install fish
 oc-0x:$  chsh -s /usr/bin/fish
+oc-0x:$  chsh -s /usr/bin/fish mtneug
 ```
 
 ### NFS
@@ -81,7 +82,7 @@ Install an NFS Server on `oc-01` end configure exports:
 oc-01:$  apt install nfs-kernel-server
 oc-01:$  mkdir -p /var/nfs/docker
 oc-01:$  chmod 700 /var/nfs/docker
-oc-01:$  echo "/var/nfs/docker 10.132.0.100(rw,no_root_squash,no_subtree_check) 10.132.0.101(rw,no_root_squash,no_subtree_check) 10.132.0.102(rw,no_root_squash,no_subtree_check) 192.158.29.237(rw,no_root_squash,no_subtree_check)" > /etc/exports
+oc-01:$  echo "/var/nfs/docker 10.132.0.100(rw,no_root_squash,no_subtree_check) 10.132.0.101(rw,no_root_squash,no_subtree_check) 10.132.0.102(rw,no_root_squash,no_subtree_check) 10.132.0.103(rw,no_root_squash,no_subtree_check)" > /etc/exports
 oc-01:$  exportfs -ra
 ```
 
@@ -156,13 +157,13 @@ oc-0x:$  docker plugin install store/weaveworks/net-plugin:latest_release --gran
 Copy configuration files:
 
 ```sh
-local:$  git clone https://github.com/mtneug/containerized-opencast-workshop.git /tmp/workdir
+oc-01:$  git clone https://github.com/mtneug/containerized-opencast-workshop.git /root/workdir
 ```
 
 Deploy proxy stack:
 
 ```sh
-oc-01:$  cd /tmp/workdir/swarm/proxy
+oc-01:$  cd /root/workdir/swarm/proxy
 oc-01:$  docker stack deploy --prune -c docker-compose.yml proxy
 ```
 
@@ -184,7 +185,7 @@ oc-01:$  chown 800:800 /mnt/docker/opencast-data
 Deploy Opencast stack:
 
 ```sh
-oc-01:$  cd /tmp/workdir/swarm/opencast
+oc-01:$  cd /root/workdir/swarm/opencast
 oc-01:$  docker stack deploy --prune -c docker-compose.yml opencast
 ```
 
